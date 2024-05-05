@@ -1,1 +1,293 @@
+# Start playbook Ansible a work 
+---
+- name: Install Apache, MariaDB, PHP on Linux Server Ubuntu 20.04
+  hosts: webserver
+  become: true
+  tasks:
+  # Update cache
+    - name: Update yum cache
+      apt:
+        name: '*'
+        state: latest
 
+# Install Apache2
+    - name: Install Apache
+      apt:
+        name: apache2
+        state: present
+
+# Install MariaDB
+    - name: Install MariaDB
+      apt:
+        name: mariadb-server
+        state: present
+
+# Start MariaDB
+    - name: Start MariaDB service
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+# Start Apache2
+    - name: Start Apache service
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+
+# Install PHP with additions
+    - name: Install packages PHP
+      apt:
+        name: php
+        state: present
+
+    - name: Install PHP moduls
+      apt:
+       name: “{{ item }}”
+       state: present
+      loop: 
+       - php-mysql
+       - php-xml
+       - php-mbstring
+       - php-fpm
+       - php-json
+       - php-gd
+       - php-curl
+       - php-zip
+
+# Install Mysql-Python 
+    - name: Install Mysql-Python
+      apt:
+        name: python3-mysql
+        state: present
+
+# Create MariaDB database
+- name: Create MySQL database
+  hosts: webserver
+  become: true
+  tasks:
+    - name: Create MySQL database
+      mysql_db:
+        name: wordpress
+        login_user: root
+        login_password: darja 
+        state: present
+
+# Create user for database MariaDB
+    - name: Create a user for MariaDB
+      mysql_user:
+        name: wordpress_user
+        password: 1234567890101
+        login_user: root
+        login_password: darja
+        priv: "wordpress.*:ALL"
+        state: present
+
+    # Issuing a grant privilege to a user on a database
+   - name: Grant privileges to MySQL
+      mysql_user:
+        name: wordpress_user
+        login_user: root
+        login_password: darja
+        priv: "wordpress.*:ALL"
+        state: present
+
+# Install packages wget
+- name: Install wget on Linux Ubuntu 
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Install wget packages
+      apt:
+       name: wget
+       state: present
+
+# Install packages tar
+- name: Install tar
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Install tar packages
+      apt:
+       name: tar
+       state: present
+
+# Install packages unzip
+- name: Install Unarchive
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Install unzip
+      apt:
+       name: unzip
+       state: present
+
+# Download zip-file website Wordpress
+- name: Download a Wordpress file
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Download file Wordpress for website
+      shell: wget http://wordpress.org/latest.zip -O /var/www/wordpress/
+
+# Unarchive zip-file wordpress to directory
+ - name: unarchive zip-file wordpress
+   hosts: webserver
+   become: yes
+   tasks:
+     - name: Unzip archive
+       unarchive:
+        src: /var/www/wordpress.zip
+        dest: /var/www/wordpress/
+        remote_src: yes
+
+# Issuance of rights
+- name: Create user and group for Apache2
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Chown Apache2 for Wordpress
+      shell: chown -R $USER:$USER /var/www/wordpress/wordpress
+
+# Issuance of rights
+- name: Chmod Apache2 for Wordpress
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Command chmod Apache2 for Wordpress
+      shell: chmod -R 775 /var/www/wordpress/wordpress/
+
+# Setting up a configuration file for the site to work Wordpress
+- name: Create file wordpress.conf for website Wordpress
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Create a configuration file
+      copy:
+      content: |
+        <VirtualHost *:80>
+          ServerAdmin webmaster@potak.wordpress.loc
+          ServerName potak.wordpress.loc
+          ServerAlias www.potak.wordpress.loc
+          DocumentRoot /var/www/wordpress/wordpress/
+
+          <Directory /var/www/wordpress/wordpress>
+                Options Indexes FollowSymLinks MultiViews
+                AllowOverride All
+                Require all granted
+         </Directory>
+
+         ErrorLog ${APACHE_LOG_DIR}/error.log
+         CustomLog ${APACHE_LOG_DIR}/access.log  combined
+       </VirtualHost>
+      dest: /etc/apache2/sites-available/potak.wordpress.loc.conf
+
+  # Reload Apache2
+  handlers:
+    - name: reload apache2
+      service:
+        name: apache2
+        state: restarted
+
+# Enable configuration file Apache2 for work website Wordpress
+- name: Start configuration file work
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Start work potak.wordpress.loc
+      command: a2ensite potak.wordpress.loc.conf
+      args:
+        chdir: /etc/apache2/sites-available/
+
+# Restart Apache2
+  handlers:
+    - name: Restart Apache2
+      service:
+        name: apache2
+        state: restarted
+
+# Disable default configuration file Apache2
+- name: Disable default configuration
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Disable default a configuration file
+      command: a2dissite 000-default.conf
+      args:
+        chdir: /etc/apache2/sites-available/
+
+# Restart Apache2
+  handlers:
+    - name: Restart Apache2
+      service:
+        name: apache2
+        state: restarted
+
+# Restart Apache2
+- name: Restarted Apache2
+  hosts: webserver
+  become: yes
+  tasks:
+    - name:
+      service:
+        name: apache2
+        state: restarted
+
+# Update PHP to 8.3
+- name: Update PHP to 8.3
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Update Php to 8.3
+      apt:
+       update_cache: yes
+
+    - name: install packages for add repository
+      apt: 
+       name:
+        - apt-transport-https
+	      - ca-certificate
+        - software-properties-common
+      become: yes
+
+    - name: Add repository Ondrej
+      apt_repository:
+        repo: ppa:ondrej/php
+      become: yes
+
+    - name: Update apt cache
+      apt:
+       update_cache: yes
+
+    - name:
+      apt:
+       name:
+         - php8.3
+         - php8.3-cli
+         - php8.3-common
+         - php8.3-fpm
+         - php8.3-mysql
+         - php8.3-xml
+         - php8.3-curl
+         - php8.3-gd
+         - php8.3-mbstring
+         - php8.3-zip
+         - php8.3-bcmath
+         - php8.3-json
+         - php8.3-intl
+
+    - name: Install composer packages
+      apt:
+       name: composer
+      become: yes
+
+# Restart Apache2
+- name: Restart apache2
+  hosts: webserver
+  become: yes
+  tasks:
+    - name: Restart apache2
+      service:
+        name: apache2
+        state: restarted
