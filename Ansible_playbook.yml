@@ -246,9 +246,9 @@
     - name: install packages for add repository
       apt: 
        name:
-        - apt-transport-https
-	- ca-certificate
-        - software-properties-common
+         - apt-transport-https
+         - ca-certificate
+         - software-properties-common
       become: yes
 
     - name: Add repository Ondrej
